@@ -292,11 +292,11 @@
   }
   .durum-opt:hover { background: var(--surface2); }
   .durum-opt-del {
-    opacity: 0; font-size: 13px; color: var(--red);
-    background: none; border: none; cursor: pointer; padding: 0 3px;
+    opacity: .4; font-size: 14px; color: var(--red);
+    background: none; border: none; cursor: pointer; padding: 2px 5px; border-radius: 4px;
   }
-  .durum-opt:hover .durum-opt-del { opacity: .6; }
-  .durum-opt-del:hover { opacity: 1 !important; }
+  .durum-opt:hover .durum-opt-del { opacity: .8; }
+  .durum-opt-del:hover { opacity: 1 !important; background: #ffebe6; }
   .durum-menu-divider { height: 1px; background: var(--border); margin: 4px 0; }
   .durum-menu-add {
     display: flex; align-items: center; gap: 6px;
@@ -694,8 +694,7 @@ window.saveDurum = async function() {
 
 window.deleteDurum = async function(e, ad) {
   e.stopPropagation();
-  if (VARSAYILAN_DURUMLAR.find(d => d.ad === ad)) { toast('Varsayılan durumlar silinemez'); return; }
-  if (!confirm(`"${ad}" durumunu silmek istediğinize emin misiniz?`)) return;
+  if (!confirm(`"${ad}" durumunu silmek istediğinize emin misiniz?\n\nBu durumu kullanan notlar silinmez, sadece bu durum kartlardan ve listeden kaldırılır.`)) return;
   durumlar = durumlar.filter(d => d.ad !== ad);
   await saveDurumlar();
   buildDurumSelect();
