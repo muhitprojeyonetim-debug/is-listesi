@@ -432,6 +432,10 @@
           <div class="table-title" id="tabloBaslik">Tüm Aktif Notlar</div>
           <div style="display:flex;gap:8px;align-items:center;">
             <input class="search-box" id="notSearch" placeholder="Not veya dosya ara..." style="width:200px;" oninput="renderAnaTable()">
+            <select class="form-select" id="siralamaSec" style="width:150px;padding:7px 10px;" onchange="renderAnaTable()">
+              <option value="alfabetik">A-Z Alfabetik</option>
+              <option value="tarih">Tarihe göre</option>
+            </select>
             <button class="btn btn-ghost btn-sm" onclick="openFiltrelePanel()">🔽 Filtrele</button>
             <button class="btn btn-ghost btn-sm" onclick="setAnaFilter('hepsi')">Temizle</button>
           </div>
@@ -889,9 +893,6 @@ window.loadAll = async function() {
   }
   await otoDurumKesfet(tumNotlar);
   allNotes = tumNotlar.filter(n => !isTamamlandi(n.durum));
-  const ord = {};
-  durumlar.forEach((d, i) => ord[d.ad] = i);
-  allNotes.sort((a, b) => (ord[a.durum] ?? 99) - (ord[b.durum] ?? 99));
   renderStats();
   renderAnaTable();
 };
@@ -979,6 +980,19 @@ function renderAnaTable() {
     filtered = filtered.filter(n =>
       (n.not || '').toLowerCase().includes(q) || (n.dosyaAd || '').toLowerCase().includes(q)
     );
+  }
+
+  // Sıralama
+  filtered = [...filtered];
+  const siralama = document.getElementById('siralamaSec')?.value || 'alfabetik';
+  if (siralama === 'alfabetik') {
+    filtered.sort((a, b) => (a.dosyaAd||'').localeCompare(b.dosyaAd||'', 'tr'));
+  } else {
+    filtered.sort((a, b) => {
+      const ta = a.tarih?.toDate ? a.tarih.toDate() : new Date(a.tarih||0);
+      const tb = b.tarih?.toDate ? b.tarih.toDate() : new Date(b.tarih||0);
+      return tb - ta;
+    });
   }
 
   if (filtered.length === 0) {
