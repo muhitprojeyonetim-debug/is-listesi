@@ -856,14 +856,40 @@ async function loadDosyalar() {
 }
 
 // ── ANA SAYFA ──
+const OTO_RENKLER = ['#de350b','#ff8b00','#00875a','#2563eb','#8b5cf6','#00b8d9','#c2185b','#5d4037','#455a64','#f57f17'];
+function renkUret(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
+  return OTO_RENKLER[Math.abs(h) % OTO_RENKLER.length];
+}
+
+async function otoDurumKesfet(tumNotlar) {
+  const bilinen = new Set(durumlar.map(d => d.ad));
+  let yeniEklendi = false;
+  tumNotlar.forEach(n => {
+    if (n.durum && !bilinen.has(n.durum)) {
+      bilinen.add(n.durum);
+      const bittiMi = /tamamlan|iptal|bitti|kapat/i.test(n.durum);
+      durumlar.push({ ad: n.durum, renk: renkUret(n.durum), bitti: bittiMi });
+      yeniEklendi = true;
+    }
+  });
+  if (yeniEklendi) {
+    await saveDurumlar();
+    buildDurumSelect();
+  }
+}
+
 window.loadAll = async function() {
   document.getElementById('anaTableWrap').innerHTML = '<div class="loading"><div class="spinner"></div> Yükleniyor...</div>';
-  allNotes = [];
+  const tumNotlar = [];
   for (const d of dosyalar) {
     const snap = await getDocs(query(collection(db, 'dosyalar', d.id, 'notlar'), orderBy('tarih', 'desc')));
     const notlar = snap.docs.map(n => ({ id: n.id, dosyaId: d.id, dosyaAd: d.ad, ...n.data() }));
-    notlar.filter(n => !isTamamlandi(n.durum)).forEach(n => allNotes.push(n));
+    notlar.forEach(n => tumNotlar.push(n));
   }
+  await otoDurumKesfet(tumNotlar);
+  allNotes = tumNotlar.filter(n => !isTamamlandi(n.durum));
   const ord = {};
   durumlar.forEach((d, i) => ord[d.ad] = i);
   allNotes.sort((a, b) => (ord[a.durum] ?? 99) - (ord[b.durum] ?? 99));
