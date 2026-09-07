@@ -430,7 +430,11 @@
       <div class="table-wrap">
         <div class="table-toolbar">
           <div class="table-title" id="tabloBaslik">Tüm Aktif Notlar</div>
-          <button class="btn btn-ghost btn-sm" onclick="setAnaFilter('hepsi')">Filtreyi temizle</button>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input class="search-box" id="notSearch" placeholder="Not veya dosya ara..." style="width:200px;" oninput="renderAnaTable()">
+            <button class="btn btn-ghost btn-sm" onclick="openFiltrelePanel()">🔽 Filtrele</button>
+            <button class="btn btn-ghost btn-sm" onclick="setAnaFilter('hepsi')">Temizle</button>
+          </div>
         </div>
         <div id="anaTableWrap">
           <div class="loading"><div class="spinner"></div> Yükleniyor...</div>
@@ -524,6 +528,18 @@
   </div>
 </div>
 
+<!-- MODAL: FİLTRELE -->
+<div class="modal-bg" id="modalFiltrele">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-title">DURUMA GÖRE FİLTRELE</div>
+    <div class="form-group" id="filtreListesi" style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="temizleFiltre()">Temizle</button>
+      <button class="btn btn-primary" onclick="uygulaFiltre()">Uygula</button>
+    </div>
+  </div>
+</div>
+
 <!-- DURUM DROPDOWN -->
 <div class="durum-menu" id="durumMenu"></div>
 
@@ -573,6 +589,7 @@ let durumlar = [...VARSAYILAN_DURUMLAR];
 let aktifDosya = null;
 let editNotId = null;
 let anaFilter = 'hepsi';
+let cokluFiltreSet = new Set();
 let allNotes = [];
 let secilenEmoji = '📌';
 let secilenRenk = '#2563eb';
@@ -887,13 +904,57 @@ function renderStats() {
 
 window.setAnaFilter = function(f) {
   anaFilter = f;
+  cokluFiltreSet.clear();
   document.getElementById('tabloBaslik').textContent = f === 'hepsi' ? 'Tüm Aktif Notlar' : f;
   renderStats();
   renderAnaTable();
 };
 
+window.openFiltrelePanel = function() {
+  const el = document.getElementById('filtreListesi');
+  el.innerHTML = durumlar.map(d => `
+    <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'">
+      <input type="checkbox" value="${esc(d.ad)}" ${cokluFiltreSet.has(d.ad)?'checked':''} style="width:16px;height:16px;">
+      <span>${d.ad}</span>
+    </label>
+  `).join('');
+  document.getElementById('modalFiltrele').classList.add('open');
+};
+
+window.temizleFiltre = function() {
+  cokluFiltreSet.clear();
+  anaFilter = 'hepsi';
+  document.getElementById('tabloBaslik').textContent = 'Tüm Aktif Notlar';
+  closeModal('modalFiltrele');
+  renderStats();
+  renderAnaTable();
+};
+
+window.uygulaFiltre = function() {
+  const checked = document.querySelectorAll('#filtreListesi input:checked');
+  cokluFiltreSet = new Set([...checked].map(c => c.value));
+  anaFilter = cokluFiltreSet.size ? 'coklu' : 'hepsi';
+  document.getElementById('tabloBaslik').textContent = cokluFiltreSet.size
+    ? `Filtrelendi (${cokluFiltreSet.size} durum)` : 'Tüm Aktif Notlar';
+  closeModal('modalFiltrele');
+  renderStats();
+  renderAnaTable();
+};
+
 function renderAnaTable() {
-  let filtered = anaFilter === 'hepsi' ? allNotes : allNotes.filter(n => n.durum === anaFilter);
+  let filtered = allNotes;
+  if (anaFilter === 'coklu' && cokluFiltreSet.size) {
+    filtered = filtered.filter(n => cokluFiltreSet.has(n.durum));
+  } else if (anaFilter !== 'hepsi') {
+    filtered = filtered.filter(n => n.durum === anaFilter);
+  }
+
+  const q = (document.getElementById('notSearch')?.value || '').trim().toLowerCase();
+  if (q) {
+    filtered = filtered.filter(n =>
+      (n.not || '').toLowerCase().includes(q) || (n.dosyaAd || '').toLowerCase().includes(q)
+    );
+  }
 
   if (filtered.length === 0) {
     document.getElementById('anaTableWrap').innerHTML =
