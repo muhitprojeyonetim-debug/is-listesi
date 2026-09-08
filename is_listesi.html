@@ -387,27 +387,50 @@
   }
   .del-ada-btn:hover { text-decoration: underline; }
 
+  /* ── MOBİL SIDEBAR ── */
+  .sidebar-backdrop {
+    display: none; position: fixed; inset: 0; z-index: 150;
+    background: rgba(9,30,66,.5);
+  }
+  .sidebar-backdrop.open { display: block; }
+
   @media (max-width: 768px) {
-    .sidebar { display: none; }
+    .mobil-dosyalar-btn { display: inline-flex !important; }
+    .mobil-kapat-btn { display: inline-flex !important; }
+    .sidebar {
+      display: flex; position: fixed; top: 0; left: 0; bottom: 0;
+      width: 280px; z-index: 200; transform: translateX(-100%);
+      transition: transform .25s ease;
+    }
+    .sidebar.open { transform: translateX(0); }
     .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .td-not { max-width: 160px; }
   }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="logo">İŞ <span>LİSTESİ</span></div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <button class="btn btn-ghost btn-sm mobil-dosyalar-btn" onclick="toggleMobilSidebar()" style="display:none;">☰ Dosyalar</button>
+    <div class="logo">İŞ <span>LİSTESİ</span></div>
+  </div>
   <div class="header-actions">
     <button class="btn btn-ghost btn-sm" onclick="showView('ana')">🏠 Ana Sayfa</button>
     <button class="btn btn-primary btn-sm" onclick="openYeniAdaModal()">+ Yeni Dosya</button>
   </div>
 </header>
 
+<div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleMobilSidebar()"></div>
+
 <div class="app">
   <!-- SIDEBAR -->
-  <div class="sidebar">
+  <div class="sidebar" id="sidebarEl">
     <div class="sidebar-header">
-      <div class="sidebar-title">Dosyalar</div>
+      <div class="sidebar-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>Dosyalar <span id="dosyaSayisi" style="color:var(--text3);font-weight:400;"></span></span>
+        <button class="rename-btn mobil-kapat-btn" onclick="toggleMobilSidebar()" style="display:none;font-size:16px;">✕</button>
+      </div>
       <input class="search-box" id="sidebarSearch" placeholder="Ara..." oninput="filterSidebar(this.value)">
     </div>
     <div class="sidebar-list" id="sidebarList">
@@ -825,18 +848,32 @@ window.filterSidebar = function(q) {
 
 function renderSidebar() {
   const list = document.getElementById('sidebarList');
+  const sayacEl = document.getElementById('dosyaSayisi');
+  if (sayacEl) sayacEl.textContent = `(${dosyalar.length})`;
   if (dosyalar.length === 0) {
     list.innerHTML = '<div class="empty"><div class="empty-icon">📂</div><div class="empty-text">Henüz dosya yok</div></div>';
     return;
   }
   list.innerHTML = dosyalar.map(d => `
-    <div class="sidebar-item" data-id="${d.id}" data-ad="${d.ad}" onclick="openDosya('${d.id}','${esc(d.ad)}')">
+    <div class="sidebar-item" data-id="${d.id}" data-ad="${d.ad}" onclick="openDosya('${d.id}','${esc(d.ad)}');kapatMobilSidebarEgerAcik();">
       <div class="sidebar-item-name">${d.ad}</div>
       <div class="badge badge-blue" id="badge-${d.id}">·</div>
     </div>
   `).join('');
   updateBadges();
 }
+
+window.toggleMobilSidebar = function() {
+  document.getElementById('sidebarEl').classList.toggle('open');
+  document.getElementById('sidebarBackdrop').classList.toggle('open');
+};
+
+window.kapatMobilSidebarEgerAcik = function() {
+  if (window.innerWidth <= 768) {
+    document.getElementById('sidebarEl').classList.remove('open');
+    document.getElementById('sidebarBackdrop').classList.remove('open');
+  }
+};
 
 async function updateBadges() {
   for (const d of dosyalar) {
@@ -1003,7 +1040,7 @@ function renderAnaTable() {
 
   document.getElementById('anaTableWrap').innerHTML = `
     <table>
-      <thead><tr><th>Dosya</th><th>Tarih</th><th>Not / Yapılacak</th><th>Durum</th></tr></thead>
+      <thead><tr><th>Dosya</th><th>Tarih</th><th>Not / Yapılacak</th><th>Durum</th><th></th></tr></thead>
       <tbody>
         ${filtered.map(n => `
           <tr>
@@ -1014,6 +1051,10 @@ function renderAnaTable() {
               <button class="durum" style="${durumStyle(n.durum)}" onclick="openDurumMenu(event,'${n.dosyaId}','${n.id}')">
                 ${n.durum || '—'}
               </button>
+            </td>
+            <td style="white-space:nowrap;">
+              <button class="btn btn-ghost btn-sm" onclick="editNot('${n.dosyaId}','${n.id}','${esc(n.not)}','${esc(n.durum)}')">✏️</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteNot('${n.dosyaId}','${n.id}')">🗑</button>
             </td>
           </tr>
         `).join('')}
@@ -1063,16 +1104,19 @@ function renderNotlar(notlar) {
       </div>
       <div class="not-icerik">${n.not}</div>
       <div class="not-actions">
-        <button class="btn btn-ghost btn-sm" onclick="editNot('${n.id}','${esc(n.not)}','${esc(n.durum)}')">✏️</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteNot('${n.id}')">🗑</button>
+        <button class="btn btn-ghost btn-sm" onclick="editNot('${aktifDosya.id}','${n.id}','${esc(n.not)}','${esc(n.durum)}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteNot('${aktifDosya.id}','${n.id}')">🗑</button>
       </div>
     </div>
   `).join('');
 }
 
 // ── NOT EKLE / DÜZENLE ──
+let duzenlemeDosyaId = null; // aktif düzenlemenin ait olduğu dosya (ana sayfa veya detay sayfasından gelebilir)
+
 window.openNotModal = function() {
   editNotId = null;
+  duzenlemeDosyaId = aktifDosya ? aktifDosya.id : null;
   document.getElementById('modalNotBaslik').textContent = 'NOT EKLE';
   document.getElementById('inputNot').value = '';
   document.getElementById('inputDurum').value = durumlar[0]?.ad || '';
@@ -1080,7 +1124,8 @@ window.openNotModal = function() {
   setTimeout(() => document.getElementById('inputNot').focus(), 100);
 };
 
-window.editNot = function(id, not, durum) {
+window.editNot = function(dosyaId, id, not, durum) {
+  duzenlemeDosyaId = dosyaId;
   editNotId = id;
   document.getElementById('modalNotBaslik').textContent = 'NOT DÜZENLE';
   document.getElementById('inputNot').value = not;
@@ -1093,24 +1138,26 @@ window.saveNot = async function() {
   const durum = document.getElementById('inputDurum').value;
   if (!not) { toast('Not boş olamaz!'); return; }
   if (durum === '__yeni__') { toast('Geçerli bir durum seç'); return; }
+  const dosyaId = duzenlemeDosyaId || (aktifDosya && aktifDosya.id);
+  if (!dosyaId) { toast('Dosya bulunamadı!'); return; }
 
   if (editNotId) {
-    await updateDoc(doc(db, 'dosyalar', aktifDosya.id, 'notlar', editNotId), { not, durum });
+    await updateDoc(doc(db, 'dosyalar', dosyaId, 'notlar', editNotId), { not, durum });
     toast('Not güncellendi ✓');
   } else {
-    await addDoc(collection(db, 'dosyalar', aktifDosya.id, 'notlar'), { not, durum, tarih: new Date() });
+    await addDoc(collection(db, 'dosyalar', dosyaId, 'notlar'), { not, durum, tarih: new Date() });
     toast('Not eklendi ✓');
   }
   closeModal('modalNot');
-  loadNotlar();
+  if (aktifDosya) loadNotlar(); else loadAll();
   updateBadges();
 };
 
-window.deleteNot = async function(id) {
+window.deleteNot = async function(dosyaId, id) {
   if (!confirm('Bu notu silmek istediğinize emin misiniz?')) return;
-  await deleteDoc(doc(db, 'dosyalar', aktifDosya.id, 'notlar', id));
+  await deleteDoc(doc(db, 'dosyalar', dosyaId, 'notlar', id));
   toast('Not silindi');
-  loadNotlar();
+  if (aktifDosya) loadNotlar(); else loadAll();
   updateBadges();
 };
 
